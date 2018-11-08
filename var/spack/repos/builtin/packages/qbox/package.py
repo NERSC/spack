@@ -35,6 +35,8 @@ class Qbox(MakefilePackage):
     homepage = "http://qboxcode.org/"
     url      = "http://qboxcode.org/download/qbox-1.63.7.tgz"
 
+    version('1.66.2', sha256='159e7e494b8c318cc50fe5a827783073d8c3449b1081dbba0ee28f77053cc608')
+    version('1.64.0', sha256='3dfa3b172cbd3d20ef933a33331928dfbbd03c545b4a13d37b2fac23ba2456b8')
     version('1.63.7', '6b0cf5656f816a1a59e22b268387af33')
     version('1.63.5', 'da3161ab6a455793f2133dd03c04077c')
     version('1.63.4', '8596f32c8fb7e7baa96571c655aaee07')
@@ -98,19 +100,30 @@ class Qbox(MakefilePackage):
 
             if 'xerces-c@3' in spec:
                 dflags += ['XERCESC_3']
+                if 'arch=cray-cnl6-haswell' in spec or 'arch=cray-cnl6-ivybridge' or 'arch=cray-cnl6-mic_knl' in spec:
+                    # static linking depends also on libiconv:
+                    ldflags += [ '-L{0}'.format(spec['libiconv'].prefix.lib), '-liconv' ]
                 
             if '+mkl' in spec:
                 # why can't I just check for arch=cray?
-                if 'arch=cray-cnl6-haswell' in spec or 'arch=cray-cnl6-ivybridge' in spec:
+                if 'arch=cray-cnl6-haswell' in spec or 'arch=cray-cnl6-ivybridge' or 'arch=cray-cnl6-mic_knl' in spec:
                     # the "static" here seems inelegant, shouldn't it happen 
                     # automatically (at link time as well as compile time)?
                     flags += ['-static', '-mkl']
                 # how to add -I${MKLROOT}/include/fftw ?
                 # I suspect it is something like:
-                flags += [ '-I{0}/fftw'.format(spec['mkl'].prefix.include) ]
+                # dammit, the problem with __str__ is that it makes debugging nearly impossible. What 
+                # is *actually* in the spec object?
+                #print("mkl spec is {}".format(spec['mkl'].__dict__))
+                #print("mkl prefix is : {}".format(spec['mkl'].prefix))
+                #print(spack.store.layout.__dict__)
+                # "/opt/intel/compilers_and_libraries_2018.1.163/linux/compiler/lib/intel64:/opt/intel/compilers_and_libraries_2018.1.163/linux/mkl" doesn't seem likle a sensible value for a prefix. Where did it come from?
+                #assert ':' not in spec['mkl'].prefix.include
+                mkl_prefix = '{0}/../mkl/'.format(spec['mkl'].prefix)
+                flags += [ '-I{0}/include'.format(mkl_prefix), '-I{0}/include/fftw'.format(mkl_prefix) ]
                 dflags += ['USE_FFTW3MKL']
                 # this might only be for cray, with static linking:
-                libdir=spec['mkl'].prefix.lib + '/intel64'
+                libdir=mkl_prefix + '/lib/intel64'
                 ldflags += ['-mkl', '-Wl,--start-group', libdir+'/libmkl_scalapack_lp64.a',
                             libdir+'/libmkl_core.a', libdir+'/libmkl_intel_thread.a',
                             libdir+'/libmkl_blacs_intelmpi_lp64.a', '-Wl,--end-group'] 

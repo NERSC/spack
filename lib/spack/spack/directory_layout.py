@@ -209,9 +209,14 @@ class YamlDirectoryLayout(DirectoryLayout):
         _check_concrete(spec)
 
         if spec.external:
-            return spec.external_path
+            # sleak: basic type safety:
+            # also, why are we checking spec.external but returning spec.external_path?
+            #assert spec.external_path is not None
+            return spec.external_path or ''
 
         path = spec.format(self.path_scheme)
+        # sleak: basic type safety:
+        assert path is not None
         return path
 
     def write_spec(self, spec, path):

@@ -745,6 +745,10 @@ def fork(pkg, function, dirty, fake):
                             exc_type.__name__,
                             tb_string, build_log, package_context)
             child_pipe.send(ce)
+            # sleak: give me some hope of finding what actually went wrong:
+            #import pdb
+            #pdb.set_trace()
+            raise
 
         finally:
             child_pipe.close()

@@ -38,10 +38,26 @@ class XercesC(AutotoolsPackage):
     version('3.2.1', '8f98a81a3589bbc2dad9837452f7d319')
     version('3.1.4', 'd04ae9d8b2dee2157c6db95fa908abfd')
 
+    variant('pic', default=True,
+            description='Produce position-independent code (for shared libs)')
+    variant('static', default=True,
+            description='Enables the build of static libraries.')
+    variant('shared', default=True,
+            description='Enables the build of shared libraries.')
+
     depends_on('libiconv')
 
     def setup_environment(self, spack_env, run_env):
         spack_env.append_flags('LDFLAGS', self.spec['libiconv'].libs.ld_flags)
+        if '+pic' in self.spec:
+            spack_env.append_flags('CFLAGS', self.compiler.pic_flag)
 
     def configure_args(self):
-        return ['--disable-network']
+        args = ['--disable-network']
+        if not '+shared' in self.spec:
+            args += ['--disable-shared', '--enable-static']
+        elif '+static' in self.spec:
+            args += ['--enable-static']
+        return args
+
+

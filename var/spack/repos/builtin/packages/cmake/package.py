@@ -105,6 +105,9 @@ class Cmake(Package):
         url = 'https://cmake.org/files/v{0}/cmake-{1}.tar.gz'
         return url.format(version.up_to(2), version)
 
+    def setup_environment(self, spack_env, run_env):
+        spack_env.set('CRAYPE_LINK_TYPE', 'dynamic') 
+
     def bootstrap_args(self):
         spec = self.spec
         args = [

@@ -1,0 +1,6 @@
+{
+  "lib/spack/spack/test/cmd/flake8.py::test_changed_files": true, 
+  "lib/spack/spack/test/module_parsing.py::test_get_module_cmd_from_bash_parens": true, 
+  "lib/spack/spack/test/module_parsing.py::test_get_module_cmd_from_bash_ticks": true, 
+  "lib/spack/spack/test/module_parsing.py::test_get_path_from_module": true
+}

@@ -178,8 +178,15 @@ def get_path_from_module(mod):
     # If it sets the LD_LIBRARY_PATH or CRAY_LD_LIBRARY_PATH, use that
     for line in text:
         if line.find('LD_LIBRARY_PATH') >= 0:
-            path = get_argument_from_module_line(line)
-            return path[:path.rfind('/lib')]
+            #path = get_argument_from_module_line(line)
+            #return path[:path.rfind('/lib')]
+            # sleak: in case we have multiple paths in LD_LIBRARY_PATH, choose the 
+            # first and hope its the right one:
+            paths = get_argument_from_module_line(line).split(':')
+            for p in paths:
+                path = p[:p.rfind('/lib')]
+                if path:
+                    return path
 
     # If it lists its package directory, return that
     for line in text:

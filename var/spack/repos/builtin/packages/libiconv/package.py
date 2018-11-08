@@ -42,10 +42,28 @@ class Libiconv(AutotoolsPackage):
 
     conflicts('@1.14', when='%gcc@5:')
 
+    variant('pic', default=True,
+            description='Produce position-independent code (for shared libs)')
+    variant('static', default=True,
+            description='Enables the build of static libraries.')
+    variant('shared', default=True,
+            description='Enables the build of shared libraries.')
+
+    def setup_environment(self, spack_env, run_env):
+        if '+pic' in self.spec:
+            spack_env.append_flags('CFLAGS', self.compiler.pic_flag)
+
     def configure_args(self):
         args = ['--enable-extra-encodings']
 
         # A hack to patch config.guess in the libcharset sub directory
         shutil.copyfile('./build-aux/config.guess',
                         'libcharset/build-aux/config.guess')
+
+        if not '+shared' in self.spec:
+            args += ['--disable-shared', '--enable-static']
+        elif '+static' in self.spec:
+            args += ['--enable-static']
+
         return args
+

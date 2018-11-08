@@ -1,0 +1,102 @@
+#!/usr/bin/env python
+##############################################################################
+# Copyright (c) 2013-2016, Lawrence Livermore National Security, LLC.
+# Produced at the Lawrence Livermore National Laboratory.
+#
+# This file is part of Spack.
+# Created by Todd Gamblin, tgamblin@llnl.gov, All rights reserved.
+# LLNL-CODE-647188
+#
+# For details, see https://github.com/llnl/spack
+# Please also see the NOTICE and LICENSE files for our notice and the LGPL.
+#
+# This program is free software; you can redistribute it and/or modify
+# it under the terms of the GNU Lesser General Public License (as
+# published by the Free Software Foundation) version 2.1, February 1999.
+#
+# This program is distributed in the hope that it will be useful, but
+# WITHOUT ANY WARRANTY; without even the IMPLIED WARRANTY OF
+# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the terms and
+# conditions of the GNU Lesser General Public License for more details.
+#
+# You should have received a copy of the GNU Lesser General Public
+# License along with this program; if not, write to the Free Software
+# Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA 02111-1307 USA
+##############################################################################
+from __future__ import print_function
+
+import os
+import sys
+
+pr = None
+if os.getenv('SPACK_PROFILE'):
+  import cProfile, pstats, sys
+  pr = cProfile.Profile()
+  pr.enable()
+
+if sys.version_info[:2] < (2, 6):
+    v_info = sys.version_info[:3]
+    sys.exit("Spack requires Python 2.6 or higher."
+             "This is Python %d.%d.%d." % v_info)
+
+# Find spack's location and its prefix.
+spack_file = os.path.realpath(os.path.expanduser(__file__))
+spack_prefix = os.path.dirname(os.path.dirname(spack_file))
+
+# Allow spack libs to be imported in our scripts
+spack_lib_path = os.path.join(spack_prefix, "lib", "spack")
+sys.path.insert(0, spack_lib_path)
+
+# Add external libs
+spack_external_libs = os.path.join(spack_lib_path, "external")
+sys.path.insert(0, spack_external_libs)
+
+# Handle vendoring of YAML specially, as it has two versions.
+if sys.version_info[0] == 2:
+    spack_yaml_libs = os.path.join(spack_external_libs, "yaml/lib")
+else:
+    spack_yaml_libs = os.path.join(spack_external_libs, "yaml/lib3")
+sys.path.insert(0, spack_yaml_libs)
+
+# Quick and dirty check to clean orphaned .pyc files left over from
+# previous revisions.  These files were present in earlier versions of
+# Spack, were removed, but shadow system modules that Spack still
+# imports.  If we leave them, Spack will fail in mysterious ways.
+# TODO: more elegant solution for orphaned pyc files.
+orphaned_pyc_files = [
+    os.path.join(spack_external_libs, 'functools.pyc'),
+    os.path.join(spack_external_libs, 'ordereddict.pyc'),
+    os.path.join(spack_lib_path, 'spack', 'platforms', 'cray_xc.pyc'),
+    os.path.join(spack_lib_path, 'spack', 'cmd', 'package-list.pyc'),
+    os.path.join(spack_lib_path, 'spack', 'cmd', 'test-install.pyc'),
+    os.path.join(spack_lib_path, 'spack', 'cmd', 'url-parse.pyc'),
+    os.path.join(spack_lib_path, 'spack', 'test', 'yaml.pyc')
+]
+
+for pyc_file in orphaned_pyc_files:
+    if not os.path.exists(pyc_file):
+        continue
+    try:
+        os.remove(pyc_file)
+    except OSError as e:
+        print("WARNING: Spack may fail mysteriously. "
+              "Couldn't remove orphaned .pyc file: %s" % pyc_file)
+
+# Once we've set up the system path, run the spack main method
+import spack.main  # noqa
+#pr = None
+#if os.getenv('SPACK_PROFILE'):
+#  import cProfile, pstats, sys
+#  pr = cProfile.Profile()
+#  pr.enable()
+
+retcode = spack.main.main()
+if pr:
+  pr.disable()
+  ps = pstats.Stats(pr, stream=sys.stdout)
+  ps.sort_stats('tottime')
+  ps.print_stats(10)
+
+sys.exit(retcode)
+
+#sys.exit(spack.main.main())
