@@ -1,8 +1,29 @@
-# Copyright 2013-2018 Lawrence Livermore National Security, LLC and other
-# Spack Project Developers. See the top-level COPYRIGHT file for details.
+##############################################################################
+# Copyright (c) 2013-2018, Lawrence Livermore National Security, LLC.
+# Produced at the Lawrence Livermore National Laboratory.
 #
-# SPDX-License-Identifier: (Apache-2.0 OR MIT)
+# This file is part of Spack.
+# Created by Todd Gamblin, tgamblin@llnl.gov, All rights reserved.
+# LLNL-CODE-647188
+#
+# For details, see https://github.com/spack/spack
+# Please also see the NOTICE and LICENSE files for our notice and the LGPL.
+#
+# This program is free software; you can redistribute it and/or modify
+# it under the terms of the GNU Lesser General Public License (as
+# published by the Free Software Foundation) version 2.1, February 1999.
+#
+# This program is distributed in the hope that it will be useful, but
+# WITHOUT ANY WARRANTY; without even the IMPLIED WARRANTY OF
+# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the terms and
+# conditions of the GNU Lesser General Public License for more details.
+#
+# You should have received a copy of the GNU Lesser General Public
+# License along with this program; if not, write to the Free Software
+# Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA 02111-1307 USA
+##############################################################################
 
+import shutil
 from spack import *
 
 
@@ -14,6 +35,8 @@ class Qbox(MakefilePackage):
     homepage = "http://qboxcode.org/"
     url      = "http://qboxcode.org/download/qbox-1.63.7.tgz"
 
+    version('1.66.2', sha256='159e7e494b8c318cc50fe5a827783073d8c3449b1081dbba0ee28f77053cc608')
+    version('1.64.0', sha256='3dfa3b172cbd3d20ef933a33331928dfbbd03c545b4a13d37b2fac23ba2456b8')
     version('1.63.7', '6b0cf5656f816a1a59e22b268387af33')
     version('1.63.5', 'da3161ab6a455793f2133dd03c04077c')
     version('1.63.4', '8596f32c8fb7e7baa96571c655aaee07')
@@ -40,14 +63,16 @@ class Qbox(MakefilePackage):
 
     variant('mkl', default=False, description="Use MKL for blas, scalapack and fftw")
     variant('openmp', default=False, description="Build with OpenMP support")
+    variant('static', default=False, description="Build with static linking")
 
     depends_on('mpi')
-    depends_on('mkl', when='+mkl') #sjl: how do i get the mkl fftw headers into the flags list?
+    depends_on('mkl', when='+mkl') 
     depends_on('blas', when='-mkl')
     depends_on('scalapack', when='-mkl')
     depends_on('fftw@3', when='-mkl')
     # depends_on xerces_c@2.8.0 or xerces_c@3 
-    depends_on('xerces-c@2.8.0:3')
+    depends_on('xerces-c@2.8.0:3+static', when='+static')
+    depends_on('xerces-c@2.8.0:3~static', when='~static')
 
     build_directory = 'src'
 
@@ -77,22 +102,31 @@ class Qbox(MakefilePackage):
 
             if 'xerces-c@3' in spec:
                 dflags += ['XERCESC_3']
+                #if 'arch=cray-cnl6-haswell' in spec or 'arch=cray-cnl6-ivybridge' or 'arch=cray-cnl6-mic_knl' in spec:
+                if 'platform=cray' in spec: 
+                    # static linking depends also on libiconv:
+                    ldflags += [ '-L{0}'.format(spec['libiconv'].prefix.lib), '-liconv' ]
                 
             if '+mkl' in spec:
-                # why can't I just check for arch=cray?
-                if 'arch=cray-cnl6-haswell' in spec or 'arch=cray-cnl6-ivybridge' in spec:
-                    # the "static" here seems inelegant, shouldn't it happen 
-                    # automatically (at link time as well as compile time)?
-                    flags += ['-static', '-mkl']
-                # how to add -I${MKLROOT}/include/fftw ?
-                # I suspect it is something like:
-                flags += [ '-I{0}/fftw'.format(spec['mkl'].prefix.include) ]
+                # get fftw from MKL too:
+                mkl_prefix = '{0}/../mkl/'.format(spec['mkl'].prefix)
+                flags += [ '-I{0}/include'.format(mkl_prefix), '-I{0}/include/fftw'.format(mkl_prefix) ]
                 dflags += ['USE_FFTW3MKL']
-                # this might only be for cray, with static linking:
-                libdir=spec['mkl'].prefix.lib + '/intel64'
-                ldflags += ['-mkl', '-Wl,--start-group', libdir+'/libmkl_scalapack_lp64.a',
-                            libdir+'/libmkl_core.a', libdir+'/libmkl_intel_thread.a',
-                            libdir+'/libmkl_blacs_intelmpi_lp64.a', '-Wl,--end-group'] 
+
+                if 'platform=cray' in spec: 
+                    flags += ['-mkl']
+                    ldflags += ['-mkl']
+
+                # this is probably only relevant for Cray:
+                if '+static' in spec:
+                    libdir=mkl_prefix + '/lib/intel64'
+                    ldflags += ['-Wl,--start-group', libdir+'/libmkl_scalapack_lp64.a',
+                                libdir+'/libmkl_core.a', libdir+'/libmkl_intel_thread.a',
+                                libdir+'/libmkl_blacs_intelmpi_lp64.a', '-Wl,--end-group'] 
+                    if 'platform=cray' in spec: 
+                        flags += ['-static']
+                        ldflags += ['-static']
+
             else:
                 libs += spec['fftw'].libs + spec['scalapack'].libs + spec['blas'].libs
 
@@ -104,8 +138,8 @@ class Qbox(MakefilePackage):
         filter_file('$(TARGET)', 'spack', 'src/Makefile', string=True)
 
     def install(self, spec, prefix):
-        mkdir(prefix.src)
-        install('src/qb', prefix.src)
-        install_tree('test', prefix)
-        install_tree('xml', prefix)
-        install_tree('util', prefix)
+        mkdir(prefix.bin)
+        install('src/qb', prefix.bin)
+        shutil.move('test', prefix)
+        shutil.move('xml', prefix)
+        shutil.move('util', prefix)

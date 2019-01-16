@@ -22,10 +22,22 @@ class Libiconv(AutotoolsPackage):
 
     conflicts('@1.14', when='%gcc@5:')
 
+    variant('static', default=False, description="build static library")
+    variant('shared', default=True, description="build shared library")
+
     def configure_args(self):
         args = ['--enable-extra-encodings']
 
         # A hack to patch config.guess in the libcharset sub directory
         copy('./build-aux/config.guess',
              'libcharset/build-aux/config.guess')
+
+        if '+static' in self.spec:
+            args += ['--enable-static']
+
+        if '~shared' in self.spec:
+            args += ['--disable-shared']
+
         return args
+
+

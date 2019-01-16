@@ -21,6 +21,16 @@ class XercesC(AutotoolsPackage):
     version('3.2.1', '8f98a81a3589bbc2dad9837452f7d319')
     version('3.1.4', 'd04ae9d8b2dee2157c6db95fa908abfd')
 
+    variant('pic', default=True,
+            description='Produce position-independent code (for shared libs)')
+    variant('static', default=True,
+            description='Enables the build of static libraries.')
+    variant('shared', default=True,
+            description='Enables the build of shared libraries.')
+#    variant('network', default='curl', 
+#            description='Enables curl for network access to XML documents')
+#-Dnetwork:BOOL=OFF 
+
     # It's best to be explicit about the transcoder or else xerces may
     # choose another value.
     if sys.platform == 'darwin':
@@ -35,8 +45,15 @@ class XercesC(AutotoolsPackage):
             multi=False,
             description='Use the specified transcoder')
 
-    depends_on('libiconv', type='link', when='transcoder=gnuiconv')
+    depends_on('libiconv+static', type='link', when='transcoder=gnuiconv +static')
+    depends_on('libiconv', type='link', when='transcoder=gnuiconv ~static')
     depends_on('icu4c',    type='link', when='transcoder=icu')
+
+    # Pass flags to configure.  This is necessary for CXXFLAGS or else
+    # the xerces default will override the spack wrapper.
+    def flag_handler(self, name, flags):
+        spec = self.spec
+
 
     # Pass flags to configure.  This is necessary for CXXFLAGS or else
     # the xerces default will override the spack wrapper.
