@@ -33,7 +33,6 @@ class Cnl(OperatingSystem):
         output = modulecmd("avail", "PrgEnv-", output=str, error=str)
         matches = re.findall(r'PrgEnv-cray/(\d+).\d+.\d+', output)
         major_versions = set(matches)
-        print(major_versions)
         latest_version = max(major_versions)
         return latest_version
 
