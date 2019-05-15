@@ -26,8 +26,8 @@ class Jdk(Package):
     # http://stackoverflow.com/questions/10268583/how-to-automate-download-and-installation-of-java-jdk-on-linux
     curl_options = [
         '-j',  # junk cookies
-        '-H',  # specify required License Agreement cookie
-        'Cookie: oraclelicense=accept-securebackup-cookie'
+        '-b',  # specify required License Agreement cookie
+        'oraclelicense=accept-securebackup-cookie'
     ]
 
     # To add the latest version, go to the homepage listed above,
@@ -65,6 +65,9 @@ class Jdk(Package):
     provides('java@9',  when='@9.0:9.999')
     provides('java@8',  when='@1.8.0:1.8.999')
     provides('java@7',  when='@1.7.0:1.7.999')
+
+    conflicts('target=ppc64', msg='jdk is only available for x86_64')
+    conflicts('target=ppc64le', msg='jdk is only available for x86_64')
 
     # FIXME:
     # 1. `extends('java')` doesn't work, you need to use `extends('jdk')`
